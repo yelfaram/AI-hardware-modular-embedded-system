@@ -52,7 +52,7 @@ This is important because different LLMs (e.g. Groq’s `llama-3.1-8b-instant` v
 
 - Subtask 1: Input Collection (gets user components + protocol)
 - Subtask 2: Input Validation (checks compatibility of components with the selected protocol)
-  - Subtask 2 includes support for memory and session-based review flow (user can modify inputs or review)
+  - Subtask 2 includes support for memory
   - User can request manual review and revise their input
 
 _NOTE_: Subtasks are currently tested in isolation with hardcoded inputs
