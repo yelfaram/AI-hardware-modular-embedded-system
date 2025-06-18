@@ -24,8 +24,7 @@ source .venv/bin/activate        # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables
-   Create a `.env` file in the project root:
+3. Set up environment variables. Create a `.env` file in the project root:
 
 ```
 GROQ_API_KEY=your-groq-api-key
@@ -43,9 +42,9 @@ Build the foundation of this system by:
 
 - Writing and testing each subtask **individually**
 - Using this modular approach to:
-  1. Make debugging easier
-  2. Get familiar with LangChain
-  3. Tweak and improve prompt design based on real model behavior
+  - Make debugging easier
+  - Get familiar with LangChain
+  - Tweak and improve prompt design based on real model behavior
 
 This is important because different LLMs (e.g. Groq’s `llama-3.1-8b-instant` vs `llama-3.3-70b-versatile`) may produce very different outputs, and chaining only works well if each step’s output is predictable.
 
