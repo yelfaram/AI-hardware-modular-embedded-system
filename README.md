@@ -80,7 +80,7 @@ _NOTE_: Subtasks are currently tested in isolation with hardcoded inputs
 
 # Resources
 
-- [Memory in LangChain](www.comet.com/site/blog/memory-in-langchain-a-deep-dive-into-persistent-context/)
+- [Memory in LangChain](https://www.comet.com/site/blog/memory-in-langchain-a-deep-dive-into-persistent-context/)
 - [Build a Chatbot - LangChain v0.3 Documentation](https://python.langchain.com/docs/tutorials/chatbot/)
 - [Build a Chatbot - LangChain v0.2 Documentation](https://python.langchain.com/v0.2/docs/tutorials/chatbot/)
 - [Prompt Chaining with LangChain - IBM Documentation](https://www.ibm.com/think/tutorials/prompt-chaining-langchain)
