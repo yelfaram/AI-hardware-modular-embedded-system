@@ -66,19 +66,19 @@ Return both:
 ```json
 {{
   "validated_components": [
-    {
+    {{
       "component": "component1",
       "native_protocols": ["i2c", "spi"],
       "compatible_with_selected": "Yes",
       "needs_adapter": "No",
       "suggested_adapter": "",
       "notes": ""
-    }
+    }}
   ],
   "protocol": "i2c",
   "manual_review_flag": false
 }}
-	- Keep the protocol and manual review flag from the previous step.
+	  - Keep the protocol and manual review flag from the previous step.
     - Only include components that passed validation or were manually approved.
     - This JSON will be used in the next step.
 
