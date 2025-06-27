@@ -11,18 +11,32 @@ conversation memory across turns.
 
 """
 
-import os
-import json
+"""
+TO DO:
+- Update to using v0.3 syntax of building chatbot (DONE)
+    - init_chat_model                             (DONE)
+    - langgraph for persistent memory             (DONE)
+    - Source: v0.3 Documentation
+"""
+
 from dotenv import load_dotenv
 
-from langchain_groq import ChatGroq                                     # Groq-backed LLM
+from langchain.chat_models import init_chat_model                       # intance of llm chat model
+
 from langchain.prompts import ChatPromptTemplate                        # Supports multi-message prompt formatting
+from langchain.prompts import MessagesPlaceholder
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import JsonOutputParser              # Extracts structured output from LLM
 from langchain_core.exceptions import OutputParserException             # Catch invalid model output
 
-from langchain_core.chat_history import BaseChatMessageHistory          # Interface for memory objects 
-from langchain_core.runnables.history import RunnableWithMessageHistory # Adds memory to LCEL pipelines
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, StateGraph
+
+from typing import Sequence
+from typing_extensions import Annotated, TypedDict
 from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+
 from pydantic import BaseModel, Field
 
 from langchain.chains.sequential import SequentialChain                 # chain where the output of one chain is fed as input to the other
@@ -35,153 +49,107 @@ from prompts import (
 
 load_dotenv()
 
-# -----------------------------
+# ------------------------------------------
 # Configuration
-# -----------------------------
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")                                # Replace with Groq key
+# ------------------------------------------
+# GROQ_API_KEY = os.getenv("GROQ_API_KEY")                                # Replace with Groq key
 GROQ_MODELS  = {
-    "fast": "llama-3.1-8b-instant",
+    "fast": "llama3-8b-8192",
     "balanced": "deepseek-r1-distill-llama-70b",
     "powerful": "llama-3.3-70b-versatile"
 }
-GROQ_MODEL   = GROQ_MODELS["powerful"]      
+GROQ_MODEL   = GROQ_MODELS["fast"]      
 
 # Initialize Groq LLM
-llm = ChatGroq(
-    model_name=GROQ_MODEL,
-    temperature=0.3,
-)
+model = init_chat_model(GROQ_MODEL, model_provider="groq", temperature=0.3)
 
 # ------------------------------------------
-# Chain 1: Input Collection
+# State Definition
+#   - track application parameters
+#   - shared data structure (passed along edges between nodes)
+#       - output of one node to the next can be taken as input
+
+# Schema Definition
+#   - structure of the state
+#   - can be TypedDict or Pydantic
 # ------------------------------------------
-# Collects initial input from user: hardware components and preferred protocol
-input_collection_prompt = ChatPromptTemplate.from_messages([
-    ("system", system_prompt),
-    ("system", first_task_prompt),
-    ("user", "{input}")
-])
+class State(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages] # add_messages(format='langchain-openai')
+    message_review_flag: bool
 
-input_collection_parser = JsonOutputParser(pydantic_object={
-    "type": "object",
-    "properties": {
-        "component_list": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "protocol": {"type": "string"}
-    }
-})
-
-input_collection_chain = (
-    input_collection_prompt 
-    | llm 
-    | input_collection_parser
-)
-
-def collect_user_input(user_input: str) -> dict:
-    """Run Chain 1: component collection from user."""
-    try:
-        result = input_collection_chain.invoke({"input": user_input})
-        print(json.dumps(result, indent=2))
-    except (OutputParserException, ValueError) as e:
-        print(e)
-
-# Example test run for Chain 1
-user_input = """#### bme280, mpu6050 i2c ####""" # feel free to modify this (can see differences when protocol missing or less than 2 components given)
-collect_user_input(user_input)
+workflow = StateGraph(state_schema=State)       # Define a new graph
 
 # ------------------------------------------
-# Chain 2: Input Validation
+# Node 1: Input Collection
+#   - collects initial input from user: hardware components and preferred protocol
 # ------------------------------------------
-# Checks if the components are compatible with the given protocol.
-# Adds memory support to handle user corrections or manual review.
 
-input_validation_prompt = ChatPromptTemplate.from_messages([
-    ("system", system_prompt),
-    ("system", second_task_prompt),
-    ("placeholder", "{conversation}"),                          # memory placeholder
-    ("user", "{input}"),
-    ("user", "Manual review requested? {manual_review_flag}")
-])
+def collect_input(state: State):
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("system", first_task_prompt),
+        MessagesPlaceholder(variable_name="messages")
+    ]).invoke(state)    # need invoke(state) to return formatted messages
 
-input_validation_parser = JsonOutputParser(pydantic_object={
-    "type": "object",
-    "properties": {
-        "component_list": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "protocol": {"type": "string"},
-        "incompatible_components_detected": {"type": "bool"},
-        "csv_report": {"type": "string"}
-    },
-    "required": ["component_list", "protocol"]
-})
+    response = model.invoke(prompt)
+    print("State of 1", state)
+    return {"messages": [response], **state}
 
-input_validation_chain = (
-    input_validation_prompt
-    | llm 
-    | input_validation_parser
+# ------------------------------------------
+# Node 2: Input Validation
+#   - checks if the components are compatible with the given protocol.
+#   - adds memory support to handle user corrections or manual review.
+# ------------------------------------------
+
+def validate_input(state: State):
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("system", second_task_prompt),
+        MessagesPlaceholder(variable_name="messages")
+    ]).invoke(state)
+
+    response = model.invoke(prompt)
+    return {"messages": [response]}
+
+# ------------------------------------------
+# Connect Graph Nodes
+#
+# Node Definition
+#   - perform the actual work (execute logic; e.g. llm calls)
+#
+# Edge Definition
+#   - define what happens next (flow of state)
+# ------------------------------------------
+# define nodes and edges
+workflow.add_edge(START, "collect_input")
+workflow.add_edge("collect_input", "validate_input")
+workflow.add_node("collect_input", collect_input)
+workflow.add_node("validate_input", validate_input)
+
+# Add memory
+memory = MemorySaver()
+app = workflow.compile(checkpointer=memory)
+
+# ------------------------------------------
+# Example Run
+# ------------------------------------------
+config             = {"configurable": {"thread_id": "abc123"}}
+first_query        = "#### bme280, mpu6050, lcd1602 i2c ####"
+second_query       = "Validate these components please."
+manual_review_flag = False
+
+# First input: component collection
+input_messages = [HumanMessage(first_query)]
+output = app.invoke(
+    {"messages": input_messages, "manual_review_flag": manual_review_flag},
+    config
 )
+print(output["messages"][-1].content)
 
-# -----------------------------
-# Session-Aware Memory for Chain 2
-# -----------------------------
-# Simple in-memory message store to simulate session-based conversation state. (copied directly from LangChain docs)
-class InMemoryHistory(BaseChatMessageHistory, BaseModel):
-    """In memory implementation of chat message history."""
-
-    messages: list[BaseMessage] = Field(default_factory=list)
-
-    def add_messages(self, messages: list[BaseMessage]) -> None:
-        """Add a list of messages to the store"""
-        self.messages.extend(messages)
-
-    def clear(self) -> None:
-        self.messages = []
-
-# Here we use a global variable to store the chat message history.
-# This will make it easier to inspect it to see the underlying results.
-store = {}
-
-def get_by_session_id(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = InMemoryHistory()
-    return store[session_id]
-
-# Wrap the chain to support message history (**should update this to v0.3)
-input_validation_chain_with_history = RunnableWithMessageHistory(
-    input_validation_chain,
-    get_session_history=get_by_session_id,
-    input_messages_key="input",
-    history_messages_key="conversation"
+# Second input: validation step
+input_messages = [HumanMessage(second_query)]
+output = app.invoke(
+    {"messages": input_messages, "manual_review_flag": manual_review_flag},
+    config
 )
-
-def validate_user_input(user_input: str, review_flag: bool = False) -> dict:
-    """Run Chain 2: component compatibility check + memory."""
-    try:
-        result = input_validation_chain_with_history.invoke(
-            {"input": user_input, "manual_review_flag": review_flag},
-            config={"configurable": {"session_id": "foo"}}
-        )
-        print(result)
-    except (OutputParserException, ValueError) as e:
-        print(e)
-
-print("--------"*10)
-
-# Example test run for Chain 2
-user_input = {          # feel free to modify this (try including lm393 - a microphone)
-  "component_list": [
-    "bme280",
-    "lcd1602"
-  ],
-  "protocol": "i2c"
-}
-validate_user_input(user_input)
-
-print("--------"*10)
-print(store)
-
-# note: chain 2 would probably have to go back to chain 1 if component or protocol is modified
+print(output["messages"][-1].content)
