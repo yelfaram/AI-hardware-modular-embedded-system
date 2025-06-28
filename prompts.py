@@ -63,6 +63,9 @@ Return both:
   	- Component, Native Protocols, Compatible with Selected, Needs Adapter?, Suggested Adapter, Notes
    	- Use `Yes/No` where appropriate. Leave blanks if not applicable.
   2. The **updated JSON object** in this format:
+  	- Keep the protocol and manual review flag from the previous step.
+    - Only include components that passed validation or were manually approved.
+    - This JSON will be used in the next step.
 ```json
 {{
   "validated_components": [
@@ -78,15 +81,11 @@ Return both:
   "protocol": "i2c",
   "manual_review_flag": false
 }}
-	  - Keep the protocol and manual review flag from the previous step.
-    - Only include components that passed validation or were manually approved.
-    - This JSON will be used in the next step.
-
 
 ### Behavior
 - If **all components are compatible**: confirm success and wait for further instructions.
 - If **any component is incompatible**:
   - By default: remove incompatible components and pass this in the JSON.
-  - If `manual_review_flag == True`: ask the user:
+  - Iff {{manual_review_flag}} is `true` (from the previous step): ask the user:
     - “Would you like to proceed with these adapters, modify your component list, or try a different protocol?”
 """
