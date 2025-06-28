@@ -1,13 +1,10 @@
 # Project Overview
 
-This project aims to build an **agentic chatbot workflow** that guides a user through the process of generating
-embedded systems application ideas using ESP32-compatible components. The chatbot is structured as a series of subtasks, each handled by its own prompt and LangChain chain.
+This project aims to build an **agentic chatbot workflow** that guides a user through the process of generating embedded systems application ideas using ESP32-compatible components. The chatbot is structured as a series of subtasks, each handled by its own LangGraph node with persistent memory..
 
-We're using **LangChain** (v0.2 and v0.3 syntax) to implement this. LangChain is a popular framework
-that helps structure prompt workflows and memory in LLM apps.
+We're using **LangChain v0.3 and LangGraph** to implement this. LangChain provides a powerful framework for structuring prompt workflows and memory in LLM applications.
 
-Each subtask is implemented as a **separate chain**. Once all subtasks are working correctly, we'll connect them
-using LangChain’s `SequentialChain` to form a complete end-to-end pipeline.
+Each subtask is implemented as a **graph node** in LangGraph. Nodes are connected in a memory-aware graph that maintains the conversation state across turns.
 
 ## Getting Started
 
@@ -48,35 +45,47 @@ Build the foundation of this system by:
 
 This is important because different LLMs (e.g. Groq’s `llama-3.1-8b-instant` vs `llama-3.3-70b-versatile`) may produce very different outputs, and chaining only works well if each step’s output is predictable.
 
+### Where We Are
+
+The core system is now:
+
+- Built using LangGraph with memory persistence (`MemorySaver`)
+- Running with a multi-node graph: input collection → input validation
+- State keys are successfully carried across nodes
+
 ## What's Done So Far
 
-- Subtask 1: Input Collection (gets user components + protocol)
-- Subtask 2: Input Validation (checks compatibility of components with the selected protocol)
-  - Subtask 2 includes support for memory
-  - User can request manual review and revise their input
+- Subtask 1: Input Collection (user provides components + protocol)
+- Subtask 2: Input Validation (checks component compatibility)
+  - Subtask 2 correctly **tracks memory and state**
+  - User can request manual review to revise inputs
+- Graph nodes and memory management work as intended
 
-_NOTE_: Subtasks are currently tested in isolation with hardcoded inputs
+_Note:_ Currently tested in isolation using hardcoded inputs.
 
 ## What Still Needs Work
 
-- Subtask 1 and 2 are not yet connected into a sequential chain
-- Prompts for both tasks still need refinement (less verbose, more LLM-consistent formatting)
-- Subtasks 3–6 still need to be implemented (e.g. board/application domain, application idea generation, application validation)
-- Final `SequentialChain` wiring will happen after all chains are working and returning expected outputs
+- Add **branching logic** to loop back to input collection if manual review is requested
+- Finalize prompt wording to make it less verbose and more LLM-consistent
+- Implement remaining subtasks:
+  - Application Domain/Industry Input
+  - Application idea generation
+  - Application validation
 
 ## Notes
 
-- We're using both **LangChain v0.2 style** (LLMChain, SequentialChain) and newer **v0.3 LCEL** (Runnable-style syntax)
-- Memory is currently managed using `RunnableWithMessageHistory` with a custom `store` object for session tracking
-  - This works well for testing
-  - But LangChain recommends **LangGraph** for managing memory over multiple turns in real chatbots
-- Subtask 2 is where memory becomes important — it supports a loop where the user may edit their inputs after
-  seeing validation results. Eventually, this should loop back to Subtask 1 in the full flow.
+- The project now uses **LangChain v0.3 and LangGraph.**
+- Memory is handled via `MemorySaver` (in-memory checkpointing).
+- Session persistence is supported via `thread_id`.
+- Branching behavior will allow dynamic control over conversation flow based on user choices.
+- Without passing `**state`, the output doesn't generate a response (**look into this**)
 
 ## Next Steps
 
-- Finalize prompts for Subtask 1 and 2 to improve clarity + JSON consistency
-- Implement Subtask 3 and so on
+- Add branching logic for manual review loop
+- Refine prompts for consistency and LLM clarity
+- Implement remaining subtasks (Subtask 3 and beyond)
+- Add multi-session support
 
 # Resources
 
