@@ -1,22 +1,16 @@
 """
 AI Agent Workflow - ESP32 Application Idea Generator
 
-This script implements the first two subtasks of a LangChain-based agent workflow:
+This script implements the first two subtasks of a LangGraph-based agent workflow:
 1. Input Collection
 2. Input Validation (with memory for back-and-forth dialog)
 
 Each subtask is modular and designed for independent testing. Prompts are kept separate from code for clarity. 
-We're using LangChain's Runnable interface (v0.3 style) along with `RunnableWithMessageHistory` to enable 
-conversation memory across turns.
-
+We're using LangChain's Runnable interface (v0.3) with LangGraph for persistent memory and state tracking.
 """
 
 """
 TO DO:
-- Update to using v0.3 syntax of building chatbot (DONE)
-    - init_chat_model                             (DONE)
-    - langgraph for persistent memory             (DONE)
-    - Source: v0.3 Documentation
 """
 
 from dotenv import load_dotenv
@@ -39,8 +33,6 @@ from langgraph.graph.message import add_messages
 
 from pydantic import BaseModel, Field
 
-from langchain.chains.sequential import SequentialChain                 # chain where the output of one chain is fed as input to the other
-
 from prompts import (
     system_prompt, 
     first_task_prompt, 
@@ -58,7 +50,7 @@ GROQ_MODELS  = {
     "balanced": "deepseek-r1-distill-llama-70b",
     "powerful": "llama-3.3-70b-versatile"
 }
-GROQ_MODEL   = GROQ_MODELS["fast"]      
+GROQ_MODEL   = GROQ_MODELS["powerful"]      
 
 # Initialize Groq LLM
 model = init_chat_model(GROQ_MODEL, model_provider="groq", temperature=0.3)
@@ -92,7 +84,6 @@ def collect_input(state: State):
     ]).invoke(state)    # need invoke(state) to return formatted messages
 
     response = model.invoke(prompt)
-    print("State of 1", state)
     return {"messages": [response], **state}
 
 # ------------------------------------------
@@ -109,7 +100,7 @@ def validate_input(state: State):
     ]).invoke(state)
 
     response = model.invoke(prompt)
-    return {"messages": [response]}
+    return {**state, "messages": [response]}
 
 # ------------------------------------------
 # Connect Graph Nodes
@@ -134,9 +125,8 @@ app = workflow.compile(checkpointer=memory)
 # Example Run
 # ------------------------------------------
 config             = {"configurable": {"thread_id": "abc123"}}
-first_query        = "#### bme280, mpu6050, lcd1602 i2c ####"
-second_query       = "Validate these components please."
-manual_review_flag = False
+first_query        = "#### bme280, mpu6050, lcd1602 #### #### i2c #### #### false ####"   # try lm393 (should say not compatible)
+manual_review_flag = True
 
 # First input: component collection
 input_messages = [HumanMessage(first_query)]
@@ -144,12 +134,17 @@ output = app.invoke(
     {"messages": input_messages, "manual_review_flag": manual_review_flag},
     config
 )
-print(output["messages"][-1].content)
+print("OUTPUT: ", output["messages"][-2].content)
+print("\n")
+print("OUTPUT: ", output["messages"][-1].content)
+
+#   - app needs to be invoked only once. since its a graph it will flow through all nodes dictate by the edges until it reaches end
+#   - so no need to receive a second input telling to validate
 
 # Second input: validation step
-input_messages = [HumanMessage(second_query)]
-output = app.invoke(
-    {"messages": input_messages, "manual_review_flag": manual_review_flag},
-    config
-)
-print(output["messages"][-1].content)
+# input_messages = [HumanMessage(second_query)]
+# output = app.invoke(
+#     {"messages": input_messages, "manual_review_flag": manual_review_flag},
+#     config
+# )
+# print(output["messages"][-1].content)
