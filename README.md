@@ -96,3 +96,4 @@ _Note:_ Currently tested in isolation using hardcoded inputs.
 - [LangChain + Groq - Groq Documentation](https://console.groq.com/docs/langchain)
 - [RunnableWithMessageHistory - LangChain Documentation](https://python.langchain.com/api_reference/core/runnables/langchain_core.runnables.history.RunnableWithMessageHistory.html)
 - [LangGraph Memory - Concept](https://langchain-ai.github.io/langgraph/concepts/memory)
+- [Could be useful](https://github.com/NirDiamant/agents-towards-production)

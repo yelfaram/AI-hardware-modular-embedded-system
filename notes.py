@@ -110,9 +110,9 @@
 #     | input_validation_parser
 # )
 # 
-# -----------------------------
+# --------------------------------
 # Session-Aware Memory for Chain 2
-# -----------------------------
+# --------------------------------
 # Simple in-memory message store to simulate session-based conversation state. (copied directly from LangChain docs)
 # def validate_user_input(user_input: str, review_flag: bool = False) -> dict:
 #     """Run Chain 2: component compatibility check + memory."""
@@ -136,3 +136,32 @@
 #   "protocol": "i2c"
 # }
 # validate_user_input(user_input)
+
+# ------------------------------------------
+# Example Run (OLD)
+# ------------------------------------------
+
+# config             = {"configurable": {"thread_id": "abc123"}}
+# first_query        = "#### bme280, mpu6050, lcd1602 #### #### i2c ####"   # try lm393 (should say not compatible)
+# manual_review_flag = True
+
+# First input: component collection
+# input_messages = [HumanMessage(first_query)]
+# output = app.invoke(
+#     {"messages": input_messages, "manual_review_flag": manual_review_flag},
+#     config
+# )
+# print("OUTPUT: ", output["messages"][-2].content)
+# print("\n")
+# print("OUTPUT: ", output["messages"][-1].content)
+
+#   - app needs to be invoked only once. since its a graph it will flow through all nodes dictate by the edges until it reaches end
+#   - so no need to receive a second input telling to validate
+
+# Second input: validation step
+# input_messages = [HumanMessage(second_query)]
+# output = app.invoke(
+#     {"messages": input_messages, "manual_review_flag": manual_review_flag},
+#     config
+# )
+# print(output["messages"][-1].content)
