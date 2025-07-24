@@ -43,7 +43,7 @@ python llm_logic.py
 - Groq LLM API
 - MemorySaver for persistent in-memory state
 
-# Resources
+## Resources
 
 - [Memory in LangChain](https://www.comet.com/site/blog/memory-in-langchain-a-deep-dive-into-persistent-context/)
 - [Build a Chatbot - LangChain v0.3 Documentation](https://python.langchain.com/docs/tutorials/chatbot/)
